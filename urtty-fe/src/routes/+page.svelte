@@ -1,0 +1,133 @@
+<script>
+    import { onMount } from 'svelte';
+    import Urbit from '@urbit/http-api';
+
+    let terminalContainer;
+    let term;
+    let socket;
+    let inputBuffer = "";
+
+    onMount(async () => {
+        const xtermModule = await import('xterm');
+        const Terminal = xtermModule.Terminal;
+        term = new Terminal();
+        term.open(terminalContainer);
+        term.writeln('Connecting to the server...');
+        
+        const wsUrl = 'ws://localhost:8088/ws';
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = function() {
+            term.writeln('Creating shell...');
+        };
+
+        socket.onmessage = function(event) {
+            let data;
+            if (event.data instanceof ArrayBuffer) {
+                data = event.data;
+            } else if (event.data instanceof Blob) {
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const arrayBuffer = reader.result;
+                    const message = new TextDecoder().decode(arrayBuffer);
+                    term.write(message);
+                };
+                reader.readAsArrayBuffer(event.data);
+                return;
+            } else {
+                console.error('Received data is not an ArrayBuffer or Blob:', event.data);
+                return;
+            }
+            const message = new TextDecoder().decode(data);
+            term.write(message);
+        };
+
+        socket.onclose = function() {
+            term.writeln('Connection closed.');
+        };
+
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            term.writeln('WebSocket error. See console for details.');
+        };
+
+        term.onData(key => {
+            if (key === '\r') {
+                socket.send(inputBuffer + '\r');
+                term.write('\r\n');
+                inputBuffer = "";
+            } else if (key === '\x7F' || key === '\b') {
+                if (inputBuffer.length > 0) {
+                    inputBuffer = inputBuffer.slice(0, -1);
+                    term.write('\b \b');
+                }
+            } else {
+                inputBuffer += key;
+                term.write(key);
+            }
+        });
+    });
+</script>
+
+<main>
+	<body>
+		<div class="title">
+			<h2>GroundSeg TTY</h2>
+		</div>
+		<div id="terminal-container">
+			<div id="terminal-inner">
+				<div bind:this={terminalContainer} id="terminal-inner"></div>
+			</div>
+		</div>
+	</body>
+</main>
+
+<style>
+body {
+	font-family: 'Arial', sans-serif;
+	background-color: #4a4a4a;
+	color: #c8c8c8;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+#terminal-container {
+	background-color: #000;
+	border-radius: 25px;
+	padding: 10px;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+	margin: 20px;
+	width: calc(100% - 40px);
+	height: 100%;
+	position: relative;
+	overflow: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: #4a4a4a #1d1f21;
+}
+#terminal-container ::-webkit-scrollbar {
+	width: 12px;
+}
+#terminal-container ::-webkit-scrollbar-thumb {
+	background: #4a4a4a;
+	border-radius: 6px;
+}
+#terminal-container ::-webkit-scrollbar-thumb:hover {
+	background: #686868;
+}
+#terminal-inner {
+	width: 100%;
+	height: 100%;
+	max-height: 400px;
+	overflow: auto;
+}
+.title { 
+	color: #fff; 
+	font-size: 24px; 
+	font-family: 'Signika', sans-serif; 
+	padding-bottom: 10px;
+	text-align: center;
+}
+</style>
