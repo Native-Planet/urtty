@@ -28,7 +28,9 @@
   ^-  (quip card _this)
   =/  old  !<(versioned-state old-state)
   ?-  -.old
-    %0  `this(state old)
+    %0
+    :-  ~[[%pass /lick %arvo %l %spin /'urtty.sock']]
+    this(state old)
   ==
 ::
 ++  on-poke
@@ -80,7 +82,7 @@
       [%broadcast ~]
     :_  this(alive now.bowl)
     :~  
-      [%give %fact ~ %broadcast !>(`broadcast`'{"type":"init"}')]
+      [%give %fact ~ %broadcast !>(`broadcast`'{"action":"init"}')]
       [%pass /lick %arvo %l %spin /'urtty.sock']
     ==
   ==

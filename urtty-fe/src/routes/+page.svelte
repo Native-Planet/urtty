@@ -1,59 +1,86 @@
 <script>
     import { onMount } from 'svelte';
+    import { writable } from 'svelte/store';
     import Urbit from '@urbit/http-api';
+    import { Terminal } from 'xterm';
 
     let terminalContainer;
     let term;
-    let socket;
     let inputBuffer = "";
+    const urbit = new Urbit("");
+    export const broadcast = writable("");
 
-    onMount(async () => {
-        const xtermModule = await import('xterm');
-        const Terminal = xtermModule.Terminal;
+    export const subscribe = ship => {
+        urbit.ship = ship;
+        urbit.onOpen = () => console.log("onOpen opened");
+        urbit.onRetry = () => console.log("onRetry called");
+        urbit.onError = e => console.error("onError: " + e);
+        urbit.subscribe({
+            app: "urtty",
+            path: "/broadcast",
+            event: handleEvent,
+            quit: handleQuit,
+            err: handleErr
+        });
+    };
+
+    export const sendPoke = payload => {
+        urbit.poke({
+        app: "urtty",
+        mark: "action",
+        json: {"action":payload},
+            onSuccess: handlePokeSuccess,
+            onError: handlePokeError
+        })
+    }
+
+    const handlePokeSuccess = () => {
+        console.log("poke succeeded")
+    }
+
+    const handlePokeError = event => {
+        console.log(event)
+    }
+
+    const handleEvent = event => {
+        if (typeof event.cord === 'string') {
+            let broadcast;
+            try {
+                broadcast = JSON.parse(event.cord);
+            } catch (error) {
+                console.error("Failed to parse: ", error);
+                return;
+            }
+            handleBroadcast(broadcast);
+        }
+    };
+
+    const handleQuit = () => console.error("quit called");
+    const handleErr = () => console.error("error called");
+
+    const handleBroadcast = broadcast => {
+        if (broadcast && broadcast.broadcast) {
+            const decodedData = atob(broadcast.broadcast);
+            term.write(decodedData);
+        }
+    };
+
+    const sendDataToUrbit = data => {
+        const encodedData = btoa(data);
+        const jsonData = JSON.stringify({ action: encodedData });
+        sendPoke(data);
+    };
+
+    onMount(() => {
         term = new Terminal();
         term.open(terminalContainer);
         term.writeln('Connecting to the server...');
-        
-        const wsUrl = 'ws://localhost:8088/ws';
-        socket = new WebSocket(wsUrl);
-
-        socket.onopen = function() {
-            term.writeln('Creating shell...');
-        };
-
-        socket.onmessage = function(event) {
-            let data;
-            if (event.data instanceof ArrayBuffer) {
-                data = event.data;
-            } else if (event.data instanceof Blob) {
-                const reader = new FileReader();
-                reader.onload = function() {
-                    const arrayBuffer = reader.result;
-                    const message = new TextDecoder().decode(arrayBuffer);
-                    term.write(message);
-                };
-                reader.readAsArrayBuffer(event.data);
-                return;
-            } else {
-                console.error('Received data is not an ArrayBuffer or Blob:', event.data);
-                return;
-            }
-            const message = new TextDecoder().decode(data);
-            term.write(message);
-        };
-
-        socket.onclose = function() {
-            term.writeln('Connection closed.');
-        };
-
-        socket.onerror = function(error) {
-            console.error('WebSocket error:', error);
-            term.writeln('WebSocket error. See console for details.');
-        };
+        subscribe('zod');
+        sendDataToUrbit("init")
 
         term.onData(key => {
             if (key === '\r') {
-                socket.send(inputBuffer + '\r');
+                sendDataToUrbit(inputBuffer + '\r');
                 term.write('\r\n');
                 inputBuffer = "";
             } else if (key === '\x7F' || key === '\b') {
