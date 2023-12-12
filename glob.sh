@@ -13,6 +13,7 @@ dojo () {
 hood () {
   curl -s --data '{"source":{"dojo":"+hood/'"$1"'"},"sink":{"app":"hood"}}' http://localhost:12321    
 }
+mkdir -p zod/work/glob
 cp -r web/* zod/work/glob
 hood "commit %work"
 dojo "-garden!make-glob %work /glob"
