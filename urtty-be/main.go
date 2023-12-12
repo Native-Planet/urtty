@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net"
 	"os/exec"
+	"reflect"
 	"os/user"
 
 	"github.com/creack/pty"
@@ -48,7 +49,7 @@ func makeShell() {
 	if err := pty.Setsize(ptmx, &pty.Winsize{Rows: 24, Cols: 80}); err != nil {
 		log.Fatal(err)
 	}
-	defer func() { _ = ptmx.Close() }()
+	// defer func() { _ = ptmx.Close() }()
 }
 
 func connectToIPC(socketPath string) (net.Conn, error) {
@@ -61,6 +62,7 @@ func connectToIPC(socketPath string) (net.Conn, error) {
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
+	makeShell()
 	go func() {
 		buf := make([]byte, 1024)
 		for {
@@ -80,7 +82,7 @@ func handleConnection(conn net.Conn) {
 					log.Printf("error marshalling json: %v", err)
 					return
 				}
-				conn, err = sendBroadcast(conn, jsonStr)
+				err = sendBroadcast(conn, jsonStr)
 				if err != nil {
 					log.Printf("error writing to socket: %v", err)
 					return
@@ -88,26 +90,27 @@ func handleConnection(conn net.Conn) {
 			}
 		}
 	}()
-	decoder := json.NewDecoder(conn)
-	for {
-		var msg Action
-		if err := decoder.Decode(&msg); err != nil {
-			if err != io.EOF {
-				log.Printf("error reading from socket: %v", err)
-			}
-			break
-		}
-		data, err := base64.StdEncoding.DecodeString(msg.Action)
-		if err != nil {
-			log.Printf("error decoding base64: %v", err)
-			continue
-		}
-		if string(data) == "init" {
-			makeShell()
-		} else if ptmx != nil {
-			ptmx.Write(data)
-		}
-	}
+    readBuf := make([]byte, 0, 4096)
+    tmp := make([]byte, 1024)
+    for {
+        n, err := conn.Read(tmp)
+        if err != nil {
+            if err != io.EOF {
+                log.Printf("error reading from socket: %v", err)
+            }
+            break
+        }
+        readBuf = append(readBuf, tmp[:n]...)
+        if len(readBuf) >= 5 {
+            decodedData := handleAction(readBuf)
+            if string(decodedData) == "init" {
+				fmt.Println("Initializing shell")
+            } else if ptmx != nil {
+                ptmx.Write(decodedData)
+            }
+            readBuf = readBuf[:0]
+        }
+    }
 }
 
 func toBytes(num *big.Int) []byte {
@@ -138,6 +141,43 @@ func makeBytes(num *big.Int) []byte {
 	return byteSlice
 }
 
+func handleAction(result []byte) []byte {
+	stripped := result[5:]
+	reversed := reverseLittleEndian(stripped)
+	jam := new(big.Int).SetBytes(reversed)
+	res := noun.Cue(jam)
+	if reflect.TypeOf(res) == reflect.TypeOf(noun.Cell{}) {
+		bytes, err := decodeAtom(noun.Slag(res, 1).String())
+		if err != nil {
+			fmt.Println(fmt.Sprintf("Failed to decode payload: %v", err))
+			return []byte{}
+		}
+		return bytes
+	}
+	return []byte{}
+}
+
+func decodeAtom(atom string) ([]byte, error) {
+	// Convert string to big.Int
+	bigInt := new(big.Int)
+	bigInt, ok := bigInt.SetString(atom, 10)
+	if !ok {
+		return []byte{}, fmt.Errorf("error converting string to big.Int")
+	}
+
+	// Convert big.Int to byte array
+	byteArray := reverseLittleEndian(bigInt.Bytes())
+	return byteArray, nil
+}
+
+func reverseLittleEndian(byteSlice []byte) []byte {
+	// Reverse the slice for little-endian
+	for i, j := 0, len(byteSlice)-1; i < j; i, j = i+1, j-1 {
+		byteSlice[i], byteSlice[j] = byteSlice[j], byteSlice[i]
+	}
+	return byteSlice
+}
+
 func int64ToLittleEndianBytes(num int64) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	// uint32 for 4 bytes
@@ -148,7 +188,7 @@ func int64ToLittleEndianBytes(num int64) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func sendBroadcast(conn net.Conn, broadcast string) (net.Conn, error) {
+func sendBroadcast(conn net.Conn, broadcast string) error {
 	nounType := noun.Cell{
 		Head: noun.MakeNoun("broadcast"),
 		Tail: noun.MakeNoun(broadcast),
@@ -159,10 +199,10 @@ func sendBroadcast(conn net.Conn, broadcast string) (net.Conn, error) {
 		_, err := conn.Write(jBytes)
 		if err != nil {
 			fmt.Println(fmt.Sprintf("Send tty error: %v", err))
-			return nil, err
+			return err
 		}
 	}
-	return conn, nil
+	return nil
 }
 
 func main() {
@@ -173,5 +213,6 @@ func main() {
         return
     }
     defer conn.Close()
-    go handleConnection(conn)
+	fmt.Println("Running")
+    handleConnection(conn)
 }
