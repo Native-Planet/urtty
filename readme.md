@@ -6,7 +6,7 @@ On init by the client urbit app, the backend app creates a shell process. Byte a
 
 ### Usage
 
-- Build the frontend: `./dev.sh`
+- Build the frontend: `cd urtty-fe && npm build`
+    - 
 - Run the backend: `cd urtty-be && go run main.go`
-- Install app: Boot a fakezod, `|new-desk %urtty`, `|mount %urtty`, copy the contents of `urtty-desk` into the directory, then `|commit %urtty`
-- Log into ship, go to `/docket/upload`, select `urtty` desk and upload the `./web` directory
+- Install app: Boot a fakezod, `|new-desk %urtty`, `|mount %urtty`, copy the contents of `urtty-desk` into the directory, then `|commit %urtty`,
