@@ -1,6 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
+		<script src="/session.js"></script>
+		<title>urTTY</title>
+		<style>
+			body {
+				margin: 0
+			}
+			.xterm-viewport::-webkit-scrollbar {
+				width: 12px;
+			}
+			.xterm-viewport::-webkit-scrollbar-thumb {
+				background: #4a4a4a;
+				border-radius: 6px;
+			}
+			.xterm-viewport::-webkit-scrollbar-thumb:hover {
+				background: #686868;
+			}
+		</style>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width" />

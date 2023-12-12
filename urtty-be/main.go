@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"math/big"
 	"net"
+	"os"
 	"os/exec"
-	"reflect"
 	"os/user"
+	"reflect"
 
 	"github.com/creack/pty"
 	"github.com/stevelacy/go-urbit/noun"
@@ -49,7 +49,6 @@ func makeShell() {
 	if err := pty.Setsize(ptmx, &pty.Winsize{Rows: 24, Cols: 80}); err != nil {
 		log.Fatal(err)
 	}
-	// defer func() { _ = ptmx.Close() }()
 }
 
 func connectToIPC(socketPath string) (net.Conn, error) {
@@ -63,6 +62,7 @@ func connectToIPC(socketPath string) (net.Conn, error) {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	makeShell()
+	defer func() { _ = ptmx.Close() }()
 	go func() {
 		buf := make([]byte, 1024)
 		for {
@@ -90,27 +90,25 @@ func handleConnection(conn net.Conn) {
 			}
 		}
 	}()
-    readBuf := make([]byte, 0, 4096)
-    tmp := make([]byte, 1024)
-    for {
-        n, err := conn.Read(tmp)
-        if err != nil {
-            if err != io.EOF {
-                log.Printf("error reading from socket: %v", err)
-            }
-            break
-        }
-        readBuf = append(readBuf, tmp[:n]...)
-        if len(readBuf) >= 5 {
-            decodedData := handleAction(readBuf)
-            if string(decodedData) == "init" {
-				fmt.Println("Initializing shell")
-            } else if ptmx != nil {
-                ptmx.Write(decodedData)
-            }
-            readBuf = readBuf[:0]
-        }
-    }
+	readBuf := make([]byte, 0, 4096)
+	tmp := make([]byte, 1024)
+	for {
+		n, err := conn.Read(tmp)
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("error reading from socket: %v", err)
+			}
+			break
+		}
+		readBuf = append(readBuf, tmp[:n]...)
+		decodedData := handleAction(readBuf)
+		if string(decodedData) == "init" {
+			fmt.Println("Initializing shell")
+		} else if ptmx != nil {
+			ptmx.Write(decodedData)
+		}
+		readBuf = readBuf[:0]
+	}
 }
 
 func toBytes(num *big.Int) []byte {
@@ -206,13 +204,13 @@ func sendBroadcast(conn net.Conn, broadcast string) error {
 }
 
 func main() {
-    sockPath := "../zod/.urb/dev/urtty/urtty.sock"
-    conn, err := connectToIPC(sockPath)
-    if err != nil {
-        log.Printf("Dial error: %v", err)
-        return
-    }
-    defer conn.Close()
+	sockPath := "../zod/.urb/dev/urtty/urtty.sock"
+	conn, err := connectToIPC(sockPath)
+	if err != nil {
+		log.Printf("Dial error: %v", err)
+		return
+	}
+	defer conn.Close()
 	fmt.Println("Running")
-    handleConnection(conn)
+	handleConnection(conn)
 }
