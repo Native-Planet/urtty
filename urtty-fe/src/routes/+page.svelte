@@ -99,7 +99,7 @@
 <main>
     <body>
         <div class="title">
-            <h2>$> urtty</h2>
+            <h2>$> 🐚 urtty</h2>
             <h3><img src="urtty/np.png"> by native planet</h3>
         </div>
         <div id="terminal-container">

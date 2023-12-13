@@ -1,4 +1,4 @@
-## `urtty`: PTY via `%lick`  
+## 🐚 `urtty`: PTY via `%lick`  
 
 ![Screen recording](urtty.gif)
 
