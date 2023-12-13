@@ -17,6 +17,6 @@ Urbit apps are not yet sandboxed! Don't install this on a ship with anything els
 ### Usage
 
 - Build the frontend: `./dev.sh`
-- Run the backend: `cd urtty-be && go run main.go`
 - Install app: In your fakezod or other ship, `|new-desk %urtty`, `|mount %urtty`, copy the contents of `urtty-desk` into the mounted desk, then `|commit %urtty`
+- Run the backend: `cd urtty-be && go run main.go`
 - Log into ship, go to `/docket/upload`, select `urtty` desk and upload the `./web` directory
