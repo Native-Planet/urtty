@@ -7,7 +7,6 @@
 
     let terminalContainer;
     let term;
-    let inputBuffer = "";
     const urbit = new Urbit("");
     export const broadcast = writable("");
 
@@ -79,19 +78,7 @@
         subscribe(window.ship);
         sendDataToUrbit("init");
         term.onData(key => {
-            if (key === '\r') {
-                sendDataToUrbit(inputBuffer + '\r');
-                term.write('\r\n');
-                inputBuffer = "";
-            } else if (key === '\x7F' || key === '\b') {
-                if (inputBuffer.length > 0) {
-                    inputBuffer = inputBuffer.slice(0, -1);
-                    term.write('\b \b');
-                }
-            } else {
-                inputBuffer += key;
-                term.write(key);
-            }
+            sendDataToUrbit(key);
         });
     });
 </script>
