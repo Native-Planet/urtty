@@ -205,6 +205,9 @@ func sendBroadcast(conn net.Conn, broadcast string) error {
 
 func main() {
 	sockPath := "../zod/.urb/dev/urtty/urtty.sock"
+	if devSocketPath, exists := os.LookupEnv("URTTY_SOCK"); exists {
+		sockPath = devSocketPath
+	}
 	conn, err := connectToIPC(sockPath)
 	if err != nil {
 		log.Printf("Dial error: %v", err)
